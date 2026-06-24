@@ -423,9 +423,7 @@ async def archive_emails(
         list[str],
         Field(description="List of email_id to archive (obtained from list_emails_metadata)."),
     ],
-    mailbox: Annotated[
-        str, Field(default="INBOX", description="The source mailbox containing the emails.")
-    ] = "INBOX",
+    mailbox: Annotated[str, Field(default="INBOX", description="The source mailbox containing the emails.")] = "INBOX",
 ) -> str:
     handler = dispatch_handler(account_name)
     archived_ids, failed_ids = await handler.archive_emails(email_ids, mailbox)
