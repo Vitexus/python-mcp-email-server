@@ -426,9 +426,9 @@ async def archive_emails(
     mailbox: Annotated[str, Field(default="INBOX", description="The source mailbox containing the emails.")] = "INBOX",
 ) -> str:
     handler = dispatch_handler(account_name)
-    archived_ids, failed_ids = await handler.archive_emails(email_ids, mailbox)
+    archived_ids, failed_ids, archive_folder = await handler.archive_emails(email_ids, mailbox)
 
-    result = f"Successfully archived {len(archived_ids)} email(s)"
+    result = f"Successfully archived {len(archived_ids)} email(s) to {archive_folder}"
     if failed_ids:
         result += f", failed to archive {len(failed_ids)} email(s): {', '.join(failed_ids)}"
     return result

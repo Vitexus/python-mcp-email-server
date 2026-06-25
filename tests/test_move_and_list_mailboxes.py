@@ -667,10 +667,11 @@ class TestClassicHandlerArchiveEmails:
 
         with patch.object(classic_handler.incoming_client, "list_mailboxes", mock_list):
             with patch.object(classic_handler.incoming_client, "move_emails", mock_move):
-                moved, failed = await classic_handler.archive_emails(["100"], "INBOX")
+                moved, failed, archive_folder = await classic_handler.archive_emails(["100"], "INBOX")
 
         assert moved == ["100"]
         assert failed == []
+        assert archive_folder == "All Mail"
         mock_move.assert_called_once_with(["100"], "INBOX", "All Mail")
 
     @pytest.mark.asyncio
@@ -685,10 +686,30 @@ class TestClassicHandlerArchiveEmails:
 
         with patch.object(classic_handler.incoming_client, "list_mailboxes", mock_list):
             with patch.object(classic_handler.incoming_client, "move_emails", mock_move):
-                moved, _failed = await classic_handler.archive_emails(["100", "200"])
+                moved, _failed, archive_folder = await classic_handler.archive_emails(["100", "200"])
 
         assert moved == ["100", "200"]
+        assert archive_folder == "Archive"
         mock_move.assert_called_once_with(["100", "200"], "INBOX", "Archive")
+
+    @pytest.mark.asyncio
+    async def test_archive_fallback_preserves_server_mailbox_case(self, classic_handler):
+        """Common folder-name fallback is case-insensitive but preserves the server's actual mailbox name."""
+        mailboxes = [
+            MailboxInfo(name="INBOX", delimiter="/", flags=[]),
+            MailboxInfo(name="archive", delimiter="/", flags=[]),
+        ]
+        mock_list = AsyncMock(return_value=mailboxes)
+        mock_move = AsyncMock(return_value=(["100"], []))
+
+        with patch.object(classic_handler.incoming_client, "list_mailboxes", mock_list):
+            with patch.object(classic_handler.incoming_client, "move_emails", mock_move):
+                moved, failed, archive_folder = await classic_handler.archive_emails(["100"])
+
+        assert moved == ["100"]
+        assert failed == []
+        assert archive_folder == "archive"
+        mock_move.assert_called_once_with(["100"], "INBOX", "archive")
 
     @pytest.mark.asyncio
     async def test_archive_raises_when_no_archive_folder(self, classic_handler):

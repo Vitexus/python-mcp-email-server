@@ -1730,24 +1730,27 @@ class ClassicEmailHandler(EmailHandler):
     async def _find_archive_folder(self) -> str | None:
         """Locate the Archive folder via the RFC 6154 ``\\Archive`` flag, then common names."""
         mailboxes = await self.incoming_client.list_mailboxes()
-        for mailbox in mailboxes:
-            if any(flag.lstrip("\\").lower() == "archive" for flag in mailbox.flags):
-                return mailbox.name
-        names = {mailbox.name for mailbox in mailboxes}
+        for mailbox_info in mailboxes:
+            if any(flag.lstrip("\\").lower() == "archive" for flag in mailbox_info.flags):
+                return mailbox_info.name
+
+        names_by_lowercase = {mailbox_info.name.lower(): mailbox_info.name for mailbox_info in mailboxes}
         for candidate in _ARCHIVE_FOLDER_CANDIDATES:
-            if candidate in names:
-                return candidate
+            archive_folder = names_by_lowercase.get(candidate.lower())
+            if archive_folder is not None:
+                return archive_folder
         return None
 
-    async def archive_emails(self, email_ids: list[str], mailbox: str = "INBOX") -> tuple[list[str], list[str]]:
-        """Move emails to the auto-detected Archive folder. Returns (moved_ids, failed_ids)."""
+    async def archive_emails(self, email_ids: list[str], mailbox: str = "INBOX") -> tuple[list[str], list[str], str]:
+        """Move emails to the auto-detected Archive folder. Returns (moved_ids, failed_ids, archive_folder)."""
         archive_folder = await self._find_archive_folder()
         if archive_folder is None:
             raise ValueError(
                 "No Archive folder found (looked for the RFC 6154 \\Archive flag and common names: "
                 f"{', '.join(_ARCHIVE_FOLDER_CANDIDATES)}). Use move_emails with an explicit folder instead."
             )
-        return await self.incoming_client.move_emails(email_ids, mailbox, archive_folder)
+        moved_ids, failed_ids = await self.incoming_client.move_emails(email_ids, mailbox, archive_folder)
+        return moved_ids, failed_ids, archive_folder
 
     async def list_mailboxes(self, pattern: str = "*", reference: str = "") -> list[MailboxInfo]:
         """List available mailboxes with flags and delimiter."""
