@@ -900,11 +900,17 @@ class EmailClient:
             logger.info(f"Get metadata: Search criteria: {search_criteria}")
 
             # Search for messages - use UID SEARCH for better compatibility.
-            # charset=None: aioimaplib defaults to "CHARSET utf-8", which Microsoft
-            # Exchange rejects with `NO [BADCHARSET (US-ASCII)] The specified charset
-            # is not supported.`, breaking all search/list operations. Omitting the
-            # CHARSET token works on Exchange and is harmless on other servers.
-            _, messages = await imap.uid_search(*search_criteria, charset=None)
+            # charset handling: aioimaplib defaults to "CHARSET utf-8", which
+            # Microsoft Exchange rejects with `NO [BADCHARSET (US-ASCII)] The
+            # specified charset is not supported.`, breaking all search/list
+            # operations — so ASCII-only searches omit the CHARSET token entirely.
+            # However, RFC 3501 requires a charset declaration for non-ASCII
+            # search values: without it, servers such as Coremail interpret the
+            # raw UTF-8 bytes as US-ASCII and silently return zero matches. So
+            # declare UTF-8 only when the criteria actually contain non-ASCII
+            # characters; the Exchange-sensitive ASCII path is unchanged.
+            charset = "utf-8" if any(not criterion.isascii() for criterion in search_criteria) else None
+            _, messages = await imap.uid_search(*search_criteria, charset=charset)
 
             # Handle empty or None responses
             if not messages or not messages[0]:
