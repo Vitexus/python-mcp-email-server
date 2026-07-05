@@ -489,6 +489,31 @@ class TestEmailClient:
         assert "会议" in mock_imap.uid_search.call_args.args
 
     @pytest.mark.asyncio
+    async def test_get_emails_metadata_search_ignores_non_ascii_generated_criteria(self, email_client):
+        """Generated criteria must not trigger UTF-8 charset by themselves.
+
+        Date strings are generated internally and may be locale-dependent. They
+        should not cause charset='utf-8' for an otherwise ASCII-only user search,
+        because that would reintroduce the Exchange BADCHARSET failure.
+        """
+        mock_imap = AsyncMock()
+        mock_imap._client_task = asyncio.Future()
+        mock_imap._client_task.set_result(None)
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(return_value=MagicMock(result="OK", lines=[]))
+        mock_imap.select = AsyncMock(return_value=("OK", []))
+        mock_imap.uid_search = AsyncMock(return_value=(None, [b""]))
+        mock_imap.logout = AsyncMock()
+
+        with patch.object(email_client, "imap_class", return_value=mock_imap):
+            with patch.object(EmailClient, "_build_search_criteria", return_value=["SINCE", "01-MÄR-2026"]):
+                await email_client.get_emails_metadata(mailbox="INBOX")
+
+        mock_imap.uid_search.assert_called_once()
+        assert mock_imap.uid_search.call_args.kwargs.get("charset") is None
+        assert mock_imap.uid_search.call_args.args == ("SINCE", "01-MÄR-2026")
+
+    @pytest.mark.asyncio
     async def test_get_emails_metadata_falls_back_to_uid_order_when_dates_missing(self, email_client):
         """Metadata listing should still return emails when INTERNALDATE parsing fails."""
         mock_imap = AsyncMock()
