@@ -102,10 +102,10 @@ discussions by updating those numbered documents and their cross-references.
 
 This project uses [AnyCap](https://anycap.ai) for web research, web crawling,
 multimodal generation and understanding, file sharing, and static page hosting.
-Before using it, read the installed AnyCap skill and verify authentication:
+Before using it, read the installed AnyCap skill and verify the locally installed
+CLI and authentication:
 
 ```bash
-npx -y skills update
 anycap status
 ```
 

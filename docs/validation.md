@@ -21,7 +21,9 @@ The command creates a unique Compose project, publishes SMTP and IMAP on
 dynamic loopback ports, waits by performing authenticated connections, runs the
 E2E test, and removes only that run's container and network even when the test
 fails. Concurrent runs and separate worktrees do not share lifecycle ownership.
-It does not modify the normal user configuration.
+Each MCP request has a 15-second response deadline so a live but unresponsive
+stdio subprocess fails the test instead of hanging indefinitely. The run does
+not modify the normal user configuration.
 
 The regular test suite excludes tests marked `e2e` and remains independent of
 Docker:

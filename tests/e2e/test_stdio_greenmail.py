@@ -10,6 +10,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import timedelta
 from email import policy
 from email.message import EmailMessage, Message
 from email.parser import BytesParser
@@ -233,7 +234,11 @@ async def test_current_stdio_server_against_greenmail(tmp_path: Path) -> None:
     )
 
     async with stdio_client(server) as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
+        async with ClientSession(
+            read_stream,
+            write_stream,
+            read_timeout_seconds=timedelta(seconds=15),
+        ) as session:
             initialized = await session.initialize()
             assert initialized.serverInfo.name == "email"
 
