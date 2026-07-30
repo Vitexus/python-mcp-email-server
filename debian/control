@@ -14,7 +14,7 @@ Vcs-Git: https://github.com/Vitexus/python-mcp-email-server.git
 Vcs-Browser: https://github.com/Vitexus/python-mcp-email-server
 Rules-Requires-Root: no
 
-Package: python3-mcp-email-server
+Package: mcp-email-server
 Architecture: all
 Multi-Arch: foreign
 Depends:
