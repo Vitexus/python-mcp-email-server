@@ -1,0 +1,76 @@
+Description: Port from MCP SDK 1.x to 2.0.0
+ Upstream pins mcp[cli]<2, but Debian's python3-mcp is packaged at 2.0.0
+ (no 1.x version available). SDK 2.0 renamed the API surface used here:
+ .
+  * mcp.server.fastmcp.FastMCP -> mcp.server.mcpserver.MCPServer, whose
+    constructor now takes version= directly (the private _mcp_server
+    attribute this code used to set the version on is gone).
+  * The private low-level Server handle moved from server._mcp_server to
+    server._lowlevel_server (same .run()/.create_initialization_options()
+    API, just renamed).
+  * mcp.types.JSONRPCMessage is now a plain Union type alias, not a
+    pydantic model with .model_validate_json(); use the module-level
+    mcp.types.jsonrpc_message_adapter (a pydantic TypeAdapter) instead.
+ .
+ Verified against python3-mcp 1:2.0.0-1.7~trixie: a real MCP ClientSession
+ completes initialize() and tools/list() through this patched build.
+Author: Vítězslav Dvořák <info@vitexsoftware.cz>
+Forwarded: not-needed
+Last-Update: 2026-07-31
+--- a/mcp_email_server/app.py
++++ b/mcp_email_server/app.py
+@@ -5,7 +5,7 @@ from importlib.metadata import version
+ from typing import Annotated, Literal
+ 
+ import anyio
+-from mcp.server.fastmcp import FastMCP
++from mcp.server.mcpserver import MCPServer as FastMCP
+ from mcp.types import ToolAnnotations
+ from pydantic import Field
+ 
+@@ -160,9 +160,7 @@ async def _application_lifespan(_server: FastMCP) -> AsyncIterator[dict[str, obj
+             await close_application_runtime()
+ 
+ 
+-mcp = FastMCP("email", lifespan=_application_lifespan)
+-# FastMCP 1.x does not expose its low-level server version in the constructor.
+-mcp._mcp_server.version = version("mcp-email-server")  # pyright: ignore[reportPrivateUsage]
++mcp = FastMCP("email", version=version("mcp-email-server"), lifespan=_application_lifespan)
+ 
+ _READ_ONLY_LOCAL = ToolAnnotations(
+     readOnlyHint=True,
+diff --git a/mcp_email_server/stdio.py b/mcp_email_server/stdio.py
+index dd5a9cf..027e6d3 100644
+--- a/mcp_email_server/stdio.py
++++ b/mcp_email_server/stdio.py
+@@ -13,7 +13,7 @@ import anyio
+ from anyio.abc import ObjectReceiveStream, ObjectSendStream
+ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+ from mcp import types
+-from mcp.server.fastmcp import FastMCP
++from mcp.server.mcpserver import MCPServer as FastMCP
+ from mcp.shared.message import SessionMessage
+ 
+ from mcp_email_server.application.limits import APPLICATION_LIMITS
+@@ -123,7 +123,7 @@ async def _stdin_reader(
+                     raise TypeError("Bounded stdio reader returned an invalid frame type")
+                 try:
+                     text = raw.decode("utf-8", errors="strict")
+-                    message = types.JSONRPCMessage.model_validate_json(text)
++                    message = types.jsonrpc_message_adapter.validate_json(text, by_name=False)
+                 except (UnicodeDecodeError, ValueError):
+                     await send_stream.send(ValueError("Invalid or oversized JSON-RPC frame"))
+                     continue
+@@ -167,10 +167,10 @@ async def _run_server(
+ ) -> None:
+     try:
+         async with read_stream, write_stream:
+-            await server._mcp_server.run(  # pyright: ignore[reportPrivateUsage]
++            await server._lowlevel_server.run(  # pyright: ignore[reportPrivateUsage]
+                 read_stream,
+                 write_stream,
+-                server._mcp_server.create_initialization_options(),  # pyright: ignore[reportPrivateUsage]
++                server._lowlevel_server.create_initialization_options(),  # pyright: ignore[reportPrivateUsage]
+             )
+     finally:
+         done.set()

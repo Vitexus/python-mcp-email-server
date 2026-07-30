@@ -28,7 +28,7 @@ Depends:
  python3-jinja2,
  python3-keyring,
  python3-loguru,
- python3-mcp,
+ python3-mcp (>= 2.0.0),
  python3-pydantic,
  python3-pydantic-settings,
  python3-starlette,
