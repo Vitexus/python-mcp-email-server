@@ -1,0 +1,5 @@
+python-mcp-email-server (1.1.0-1) UNRELEASED; urgency=low
+
+  * Initial Debian packaging
+
+ -- Vítězslav Dvořák <info@vitexsoftware.cz>  Thu, 30 Jul 2026 23:14:53 +0200
